@@ -24,15 +24,10 @@ func main() {
 
 	var wg sync.WaitGroup
 	defer wg.Wait()
-	var m sync.Mutex
-	counter := 0
 	for _, url := range urlSlice {
 		wg.Add(1)
 		go func() {
 			getImg(url)
-			m.Lock()
-			counter++
-			m.Unlock()
 			wg.Done()
 		}()
 	}
@@ -78,13 +73,8 @@ func getSrc(n *html.Node) {
 			if err != nil {
 				customLog.Logging(err)
 			} else if response.Header.Get("Etag") != "" {
-				var strBuilder strings.Builder
 				dir := "./images/"
-				strBuilder.WriteString(dir)
-				strBuilder.WriteString(strings.Trim(response.Header.Get("Etag"), "\""))
-				strBuilder.WriteString(".jpg")
-				fileName := strBuilder.String()
-				strBuilder.Reset()
+				fileName := concatSlice([]string{dir, strings.Trim(response.Header.Get("Etag"), "\""), ".jpg"})
 				file, err := os.Create(fileName)
 				defer file.Close()
 
@@ -92,10 +82,7 @@ func getSrc(n *html.Node) {
 				if err != nil {
 					customLog.Logging(err)
 				}
-				strBuilder.WriteString("added: ")
-				strBuilder.WriteString(fileName)
-				fmt.Println(strBuilder.String())
-				strBuilder.Reset()
+				fmt.Println(concatSlice([]string{"added: ", fileName}))
 			}
 		}
 	}
@@ -103,4 +90,17 @@ func getSrc(n *html.Node) {
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
 		getSrc(c)
 	}
+}
+
+func concatSlice(strSlice []string) string {
+	resp := ""
+	if len(strSlice) > 0 {
+		var strBuilder strings.Builder
+		for _, val := range strSlice {
+			strBuilder.WriteString(val)
+		}
+		resp = strBuilder.String()
+		strBuilder.Reset()
+	}
+	return resp
 }
