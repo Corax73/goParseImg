@@ -2,10 +2,12 @@ package main
 
 import (
 	"conc/customLog"
+	"conc/utils"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -33,7 +35,10 @@ func main() {
 	}
 }
 
-func sendRequest(url string) (*http.Response, error) {
+func sendRequest(url string, delayInSecond int) (*http.Response, error) {
+	if delayInSecond > 0 {
+		time.Sleep(time.Duration(delayInSecond) * time.Second)
+	}
 	response, err := http.Get(url)
 	if err != nil {
 		customLog.Logging(err)
@@ -42,7 +47,17 @@ func sendRequest(url string) (*http.Response, error) {
 }
 
 func getImg(url string) {
-	response, err := sendRequest(url)
+	var delay int
+	var err error
+	envDelay := getEnv("DELAY")
+	if envDelay != "" {
+		delay, err = strconv.Atoi(envDelay)
+		if err != nil {
+			customLog.Logging(err)
+		}
+	}
+	fmt.Println(delay)
+	response, err := sendRequest(url, delay)
 	defer response.Body.Close()
 	doc, err := html.Parse(response.Body)
 	if err != nil {
@@ -68,7 +83,16 @@ func duration(start time.Time) {
 func getSrc(n *html.Node) {
 	for _, a := range n.Attr {
 		if a.Key == "src" && strings.Contains(a.Val, ".jpg") {
-			response, err := sendRequest(a.Val)
+			var delay int
+			var err error
+			envDelay := getEnv("DELAY")
+			if envDelay != "" {
+				delay, err = strconv.Atoi(envDelay)
+				if err != nil {
+					customLog.Logging(err)
+				}
+			}
+			response, err := sendRequest(a.Val, delay)
 			defer response.Body.Close()
 			if err != nil {
 				customLog.Logging(err)
@@ -103,4 +127,14 @@ func concatSlice(strSlice []string) string {
 		strBuilder.Reset()
 	}
 	return resp
+}
+
+func getEnv(key string) string {
+	mapEnv := utils.GetConfFromEnvFile()
+	val, ok := mapEnv[key]
+	if ok {
+		return val
+	} else {
+		return ""
+	}
 }
