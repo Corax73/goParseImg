@@ -3,35 +3,47 @@ package main
 import (
 	"conc/customLog"
 	"conc/imgParser"
-	"conc/utils"
-	"fmt"
-	"sync"
-	"time"
+	"conc/parserGui"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/widget"
 )
 
 func main() {
-	customLog.LogInit("./logs/app.log")
+	parserApp := app.New()
+	window := parserApp.NewWindow("Image parser")
 
-	urlSlice := []string{
-		"https://stub.com/",
-		"https://stub1.com/",
-	}
+	btnExit := widget.NewButton("Exit", func() {
+		parserApp.Quit()
+	})
 
-	startTime := time.Now()
-	defer func() {
-		durations := utils.Duration(startTime)
-		fmt.Println(durations)
-	}()
-
-	var wg sync.WaitGroup
-	defer wg.Wait()
 	parser := imgParser.ImgParser{}
 	parser.Init()
-	for _, url := range urlSlice {
-		wg.Add(1)
-		go func() {
-			parser.GetImg(url)
-			wg.Done()
-		}()
+
+	parserGui := parserGui.ParserGui{
+		Parser:  &parser,
+		Input:   widget.NewEntry(),
+		Display: widget.NewLabel("Duration: "),
 	}
+	parserGui.SendBtn = parserGui.SendBtnHandler()
+
+	content := container.NewGridWithColumns(
+		1,
+		container.NewGridWithRows(
+			4,
+			parserGui.Input,
+			parserGui.SendBtn,
+			parserGui.Display,
+			btnExit,
+		),
+	)
+
+	window.SetContent(content)
+	window.CenterOnScreen()
+	window.Resize(fyne.NewSize(800, 600))
+	window.ShowAndRun()
+
+	customLog.LogInit("./logs/app.log")
 }
