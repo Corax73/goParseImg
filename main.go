@@ -20,6 +20,7 @@ func main() {
 
 	urlSlice := []string{
 		"https://stub.com/",
+		"https://stub.com/",
 	}
 
 	defer duration(time.Now())
@@ -49,30 +50,36 @@ func sendRequest(url string, delayInSecond int) (*http.Response, error) {
 func getImg(url string) {
 	var delay int
 	var err error
-	envDelay := getEnv("DELAY")
-	if envDelay != "" {
-		delay, err = strconv.Atoi(envDelay)
+	dirName, err := createImgDir("./images/")
+	if err == nil {
+		envDelay := getEnv("DELAY")
+		if envDelay != "" {
+			delay, err = strconv.Atoi(envDelay)
+			if err != nil {
+				customLog.Logging(err)
+			}
+		}
+
+		response, err := sendRequest(url, delay)
+		defer response.Body.Close()
+		doc, err := html.Parse(response.Body)
 		if err != nil {
 			customLog.Logging(err)
 		}
-	}
-	fmt.Println(delay)
-	response, err := sendRequest(url, delay)
-	defer response.Body.Close()
-	doc, err := html.Parse(response.Body)
-	if err != nil {
+		processHtmlDoc(doc, "img", dirName)
+	} else {
 		customLog.Logging(err)
 	}
-	processHtmlDoc(doc, "img")
+
 }
 
-func processHtmlDoc(n *html.Node, tagName string) {
+func processHtmlDoc(n *html.Node, tagName string, dirName string) {
 	if n.Data == tagName {
-		getSrc(n)
+		getSrc(n, dirName)
 	}
 
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		processHtmlDoc(c, tagName)
+		processHtmlDoc(c, tagName, dirName)
 	}
 }
 
@@ -80,7 +87,7 @@ func duration(start time.Time) {
 	fmt.Printf("%v\n", time.Since(start))
 }
 
-func getSrc(n *html.Node) {
+func getSrc(n *html.Node, dirName string) {
 	for _, a := range n.Attr {
 		if a.Key == "src" && strings.Contains(a.Val, ".jpg") {
 			var delay int
@@ -96,9 +103,9 @@ func getSrc(n *html.Node) {
 			defer response.Body.Close()
 			if err != nil {
 				customLog.Logging(err)
-			} else if response.Header.Get("Etag") != "" {
-				dir := "./images/"
-				fileName := concatSlice([]string{dir, strings.Trim(response.Header.Get("Etag"), "\""), ".jpg"})
+			} else {
+				pathSlice := strings.Split(a.Val, "/")
+				fileName := concatSlice([]string{dirName, "/", pathSlice[len(pathSlice)-1]})
 				file, err := os.Create(fileName)
 				defer file.Close()
 
@@ -112,7 +119,7 @@ func getSrc(n *html.Node) {
 	}
 
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		getSrc(c)
+		getSrc(c, dirName)
 	}
 }
 
@@ -137,4 +144,16 @@ func getEnv(key string) string {
 	} else {
 		return ""
 	}
+}
+
+func createImgDir(dirName string) (string, error) {
+	currentTime := time.Now()
+	dirName = dirName + currentTime.Format("2006_01_2-15_04_05")
+	err := os.MkdirAll(dirName, 0777)
+
+	if err != nil {
+		customLog.Logging(err)
+	}
+
+	return dirName, err
 }
