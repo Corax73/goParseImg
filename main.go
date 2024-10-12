@@ -4,6 +4,8 @@ import (
 	"conc/customLog"
 	"conc/imgParser"
 	"conc/parserGui"
+	"conc/utils"
+	"log"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -12,6 +14,12 @@ import (
 )
 
 func main() {
+	_, err := utils.CreateDir("./logs")
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
+	customLog.LogInit("./logs/app.log")
+
 	parserApp := app.New()
 	window := parserApp.NewWindow("Image parser")
 
@@ -25,9 +33,10 @@ func main() {
 	parserGui := parserGui.ParserGui{
 		Parser:  &parser,
 		Input:   widget.NewEntry(),
-		Display: widget.NewLabel("Duration: "),
+		Display: widget.NewEntry(),
 	}
 	parserGui.SendBtn = parserGui.SendBtnHandler()
+	parserGui.ScrollContainer = parserGui.GetScrollDisplay()
 
 	content := container.NewGridWithColumns(
 		1,
@@ -35,7 +44,7 @@ func main() {
 			4,
 			parserGui.Input,
 			parserGui.SendBtn,
-			parserGui.Display,
+			parserGui.ScrollContainer,
 			btnExit,
 		),
 	)
@@ -44,6 +53,4 @@ func main() {
 	window.CenterOnScreen()
 	window.Resize(fyne.NewSize(800, 600))
 	window.ShowAndRun()
-
-	customLog.LogInit("./logs/app.log")
 }

@@ -3,7 +3,6 @@ package imgParser
 import (
 	"conc/customLog"
 	"conc/utils"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -15,8 +14,8 @@ import (
 )
 
 type State struct {
-	Delay    int
-	ImageDir string
+	Delay                        int
+	ImageDir, SrtAdded, StrError string
 }
 
 func (state *State) ResetState() {
@@ -52,18 +51,25 @@ func (parser *ImgParser) SendRequest(url string) (*http.Response, error) {
 
 func (parser *ImgParser) GetImg(url string) {
 	var err error
-	currentTime := time.Now()
-	dirName := utils.ConcatSlice([]string{parser.ImageDir, currentTime.Format("2006_01_2-15_04_05")})
-	dirName, err = utils.CreateDir(dirName)
+	response, err := parser.SendRequest(url)
 	if err == nil {
-		response, err := parser.SendRequest(url)
 		defer response.Body.Close()
-		doc, err := html.Parse(response.Body)
-		if err != nil {
+		currentTime := time.Now()
+		dirName := utils.ConcatSlice([]string{parser.ImageDir, currentTime.Format("2006_01_2-15_04_05")})
+		dirName, err = utils.CreateDir(dirName)
+		if err == nil {
+			doc, err := html.Parse(response.Body)
+			if err != nil {
+				parser.StrError = err.Error()
+				customLog.Logging(err)
+			}
+			parser.ProcessHtmlDoc(doc, "img", dirName)
+		} else {
+			parser.StrError = err.Error()
 			customLog.Logging(err)
 		}
-		parser.ProcessHtmlDoc(doc, "img", dirName)
 	} else {
+		parser.StrError = err.Error()
 		customLog.Logging(err)
 	}
 }
@@ -96,7 +102,7 @@ func (parser *ImgParser) GetSrc(n *html.Node, dirName string) {
 				if err != nil {
 					customLog.Logging(err)
 				}
-				fmt.Println(utils.ConcatSlice([]string{"added: ", fileName}))
+				parser.SrtAdded = utils.ConcatSlice([]string{parser.SrtAdded, utils.ConcatSlice([]string{"added: ", fileName}), "\n"})
 			}
 		}
 	}

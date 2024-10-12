@@ -52,9 +52,9 @@ func GetEnvByKey(key string) string {
 	}
 }
 
-// CreateDir creates a directory using the passed path string with permissions 0777, returns the directory string and an error.
+// CreateDir creates a directory using the passed path string with permissions 0755, returns the directory string and an error.
 func CreateDir(dirName string) (string, error) {
-	err := os.MkdirAll(dirName, 0777)
+	err := os.MkdirAll(dirName, 0755)
 
 	if err != nil {
 		customLog.Logging(err)
