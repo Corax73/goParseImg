@@ -3,6 +3,7 @@ package imgParser
 import (
 	"conc/customLog"
 	"conc/utils"
+	"errors"
 	"io"
 	"net/http"
 	"os"
@@ -28,6 +29,14 @@ type ImgParser struct {
 
 func (parser *ImgParser) Init() {
 	var err error
+
+	if _, err := os.Stat(".env"); errors.Is(err, os.ErrNotExist) {
+		_, err := os.Create(".env")
+		if err != nil {
+			customLog.Logging(err)
+		}
+	}
+
 	envDelay := utils.GetEnvByKey("DELAY")
 	if envDelay != "" {
 		parser.Delay, err = strconv.Atoi(envDelay)
@@ -63,7 +72,10 @@ func (parser *ImgParser) GetImg(url string) {
 				parser.StrError = err.Error()
 				customLog.Logging(err)
 			}
-			parser.ProcessHtmlDoc(doc, "img", dirName)
+			pathSlice := strings.Split(url, "/")
+			pathSlice = pathSlice[:3]
+			strDomain := utils.ConcatSlice([]string{pathSlice[0], "//", pathSlice[2]})
+			parser.ProcessHtmlDoc(doc, "img", dirName, strDomain)
 		} else {
 			parser.StrError = err.Error()
 			customLog.Logging(err)
@@ -72,42 +84,60 @@ func (parser *ImgParser) GetImg(url string) {
 		parser.StrError = err.Error()
 		customLog.Logging(err)
 	}
+	utils.GCRunAndPrintMemory()
 }
 
-func (parser *ImgParser) ProcessHtmlDoc(n *html.Node, tagName string, dirName string) {
+func (parser *ImgParser) ProcessHtmlDoc(n *html.Node, tagName string, dirName string, strDomain string) {
 	if n.Data == tagName {
-		parser.GetSrc(n, dirName)
+		parser.GetSrc(n, dirName, strDomain)
 	}
 
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		parser.ProcessHtmlDoc(c, tagName, dirName)
+		parser.ProcessHtmlDoc(c, tagName, dirName, strDomain)
 	}
 }
 
-func (parser *ImgParser) GetSrc(n *html.Node, dirName string) {
+func (parser *ImgParser) GetSrc(n *html.Node, dirName string, strDomain string) {
 	for _, a := range n.Attr {
-		if a.Key == "src" && strings.Contains(a.Val, ".jpg") {
+		if a.Key == "src" && strings.Contains(a.Val, "/") && !strings.Contains(a.Val, ".svg") && len(a.Val) > 5 {
+			imgUrl := a.Val
+			if !strings.Contains(a.Val, "http") {
+				imgUrl = utils.ConcatSlice([]string{strDomain, imgUrl})
+			}
+			pathSlice := strings.Split(imgUrl, "?")
+			pathSlice = pathSlice[:1]
+			imgUrl = pathSlice[0]
 			var err error
-			response, err := parser.SendRequest(a.Val)
+			response, err := parser.SendRequest(imgUrl)
 			defer response.Body.Close()
 			if err != nil {
 				customLog.Logging(err)
 			} else {
-				pathSlice := strings.Split(a.Val, "/")
-				fileName := utils.ConcatSlice([]string{dirName, "/", pathSlice[len(pathSlice)-1]})
-				file, err := os.Create(fileName)
-				defer file.Close()
-
-				_, err = io.Copy(file, response.Body)
-				if err != nil {
-					customLog.Logging(err)
+				var fileName string
+				if !strings.Contains(imgUrl, ".jpg") && !strings.Contains(imgUrl, ".png") {
+					pathSlice = strings.Split(pathSlice[0], "/")
+					if len(pathSlice[len(pathSlice)-1]) > 0 {
+						fileName = utils.ConcatSlice([]string{dirName, "/", pathSlice[len(pathSlice)-1], ".jpg"})
+					}
+				} else {
+					pathSlice := strings.Split(a.Val, "/")
+					fileName = utils.ConcatSlice([]string{dirName, "/", pathSlice[len(pathSlice)-1]})
 				}
-				parser.SrtAdded = utils.ConcatSlice([]string{parser.SrtAdded, utils.ConcatSlice([]string{"added: ", fileName}), "\n"})
+				if fileName != "" {
+					file, err := os.Create(fileName)
+					defer file.Close()
+
+					_, err = io.Copy(file, response.Body)
+					if err != nil {
+						customLog.Logging(err)
+					}
+					parser.SrtAdded = utils.ConcatSlice([]string{parser.SrtAdded, utils.ConcatSlice([]string{"added: ", fileName}), "\n"})
+				}
 			}
 		}
 	}
 
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		parser.GetSrc(c, dirName)
+		parser.GetSrc(c, dirName, strDomain)
 	}
 }

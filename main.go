@@ -6,6 +6,7 @@ import (
 	"conc/parserGui"
 	"conc/utils"
 	"log"
+	"strconv"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -34,7 +35,11 @@ func main() {
 		Parser:  &parser,
 		Input:   widget.NewEntry(),
 		Display: widget.NewEntry(),
+		DelayEntry:    widget.NewEntry(),
 	}
+
+	delayStr := utils.ConcatSlice([]string{"Enter delay, now installed: ", strconv.Itoa(parserGui.Parser.Delay), " seconds"})
+	parserGui.DelayEntry.SetPlaceHolder(delayStr)
 	parserGui.SendBtn = parserGui.SendBtnHandler()
 	parserGui.ScrollContainer = parserGui.GetScrollDisplay()
 
@@ -43,7 +48,11 @@ func main() {
 		container.NewGridWithRows(
 			4,
 			parserGui.Input,
-			parserGui.SendBtn,
+			container.NewGridWithColumns(
+				2,
+				parserGui.DelayEntry,
+				parserGui.SendBtn,
+			),
 			parserGui.ScrollContainer,
 			btnExit,
 		),

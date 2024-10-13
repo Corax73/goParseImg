@@ -3,19 +3,21 @@ package parserGui
 import (
 	"conc/imgParser"
 	"conc/utils"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
+	"github.com/joho/godotenv"
 )
 
 type ParserGui struct {
-	Parser                  *imgParser.ImgParser
-	Input, Display          *widget.Entry
-	ScrollContainer         *container.Scroll
-	SendBtn, ClearResultBtn *widget.Button
+	Parser                     *imgParser.ImgParser
+	Input, Display, DelayEntry *widget.Entry
+	ScrollContainer            *container.Scroll
+	SendBtn, ClearResultBtn    *widget.Button
 }
 
 func (parserGui *ParserGui) SendBtnHandler() *widget.Button {
@@ -35,6 +37,7 @@ func (parserGui *ParserGui) SendBtnHandler() *widget.Button {
 			for _, url := range urlSlice {
 				wg.Add(1)
 				go func() {
+					parserGui.getDelay()
 					parserGui.Parser.GetImg(url)
 					if parserGui.Parser.StrError == "" {
 						parserGui.Display.SetText(utils.ConcatSlice([]string{parserGui.Display.Text, parserGui.Parser.SrtAdded}))
@@ -53,4 +56,16 @@ func (parserGui *ParserGui) GetScrollDisplay() *container.Scroll {
 		1,
 		parserGui.Display,
 	))
+}
+
+func (parserGui *ParserGui) getDelay() {
+	if parserGui.DelayEntry.Text != "" {
+		number, err := strconv.Atoi(parserGui.DelayEntry.Text)
+		if err == nil {
+			parserGui.Parser.Delay = number
+			envMap := utils.GetConfFromEnvFile()
+			envMap["DELAY"] = strconv.Itoa(number)
+			godotenv.Write(envMap, ".env")
+		}
+	}
 }
