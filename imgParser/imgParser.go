@@ -50,14 +50,26 @@ func (parser *ImgParser) Init() {
 }
 
 func (parser *ImgParser) SendRequest(url string) (*http.Response, error) {
+	var response *http.Response
 	if parser.Delay > 0 {
 		time.Sleep(time.Duration(parser.Delay) * time.Second)
 	}
 
 	url = strings.Trim(url, " ")
-	response, err := http.Get(url)
+
+	client := &http.Client{
+		Transport: &http.Transport{},
+	}
+
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		customLog.Logging(err)
+	} else {
+		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36")
+		response, err = client.Do(req)
+		if err != nil {
+			customLog.Logging(err)
+		}
 	}
 	return response, err
 }
