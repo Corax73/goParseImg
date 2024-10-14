@@ -17,14 +17,13 @@ type ParserGui struct {
 	Parser                     *imgParser.ImgParser
 	Input, Display, DelayEntry *widget.Entry
 	ScrollContainer            *container.Scroll
-	SendBtn, ClearResultBtn    *widget.Button
+	SendBtn, ClearWindowBtn    *widget.Button
 }
 
 func (parserGui *ParserGui) SendBtnHandler() *widget.Button {
 	return widget.NewButton("Send", func() {
 		if parserGui.Input.Text != "" {
-			parserGui.Display.SetText("")
-			parserGui.Parser.StrError = ""
+			parserGui.Parser.ResetState()
 			urlSlice := strings.Split(parserGui.Input.Text, ",")
 			startTime := time.Now()
 			defer func() {
@@ -40,7 +39,7 @@ func (parserGui *ParserGui) SendBtnHandler() *widget.Button {
 					parserGui.getDelay()
 					parserGui.Parser.GetImg(url)
 					if parserGui.Parser.StrError == "" {
-						parserGui.Display.SetText(utils.ConcatSlice([]string{parserGui.Display.Text, parserGui.Parser.SrtAdded}))
+						parserGui.Display.SetText(utils.ConcatSlice([]string{parserGui.Display.Text, parserGui.Parser.StrAdded}))
 					} else {
 						parserGui.Display.SetText(utils.ConcatSlice([]string{parserGui.Parser.StrError}))
 					}
@@ -68,4 +67,17 @@ func (parserGui *ParserGui) getDelay() {
 			godotenv.Write(envMap, ".env")
 		}
 	}
+}
+
+func (parserGui *ParserGui) ClearWindowBtnHandler() *widget.Button {
+	return widget.NewButton("Clearing window data", func() {
+		parserGui.Input.SetText("")
+		parserGui.Display.SetText("")
+		parserGui.DelayEntry.SetText(parserGui.GetDelayPlaceholder())
+		parserGui.Parser.ResetState()
+	})
+}
+
+func (parserGui *ParserGui) GetDelayPlaceholder() string {
+	return utils.ConcatSlice([]string{"Enter delay, now installed: ", strconv.Itoa(parserGui.Parser.Delay), " seconds"})
 }

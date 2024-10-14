@@ -16,11 +16,13 @@ import (
 
 type State struct {
 	Delay                        int
-	ImageDir, SrtAdded, StrError string
+	ImageDir, StrAdded, StrError string
 }
 
 func (state *State) ResetState() {
 	state.Delay = 0
+	state.ImageDir = "./images/"
+	state.StrAdded, state.StrError = "", ""
 }
 
 type ImgParser struct {
@@ -51,6 +53,8 @@ func (parser *ImgParser) SendRequest(url string) (*http.Response, error) {
 	if parser.Delay > 0 {
 		time.Sleep(time.Duration(parser.Delay) * time.Second)
 	}
+
+	url = strings.Trim(url, " ")
 	response, err := http.Get(url)
 	if err != nil {
 		customLog.Logging(err)
@@ -101,8 +105,10 @@ func (parser *ImgParser) GetSrc(n *html.Node, dirName string, strDomain string) 
 	for _, a := range n.Attr {
 		if a.Key == "src" && strings.Contains(a.Val, "/") && !strings.Contains(a.Val, ".svg") && len(a.Val) > 5 {
 			imgUrl := a.Val
-			if !strings.Contains(a.Val, "http") {
+			if !strings.Contains(a.Val, "http") && !strings.Contains(a.Val, "//") {
 				imgUrl = utils.ConcatSlice([]string{strDomain, imgUrl})
+			} else if !strings.Contains(a.Val, "http") && strings.Contains(a.Val, "//") {
+				imgUrl = utils.ConcatSlice([]string{"http:", imgUrl})
 			}
 			pathSlice := strings.Split(imgUrl, "?")
 			pathSlice = pathSlice[:1]
@@ -120,18 +126,23 @@ func (parser *ImgParser) GetSrc(n *html.Node, dirName string, strDomain string) 
 						fileName = utils.ConcatSlice([]string{dirName, "/", pathSlice[len(pathSlice)-1], ".jpg"})
 					}
 				} else {
-					pathSlice := strings.Split(a.Val, "/")
-					fileName = utils.ConcatSlice([]string{dirName, "/", pathSlice[len(pathSlice)-1]})
+					pathSlice = strings.Split(a.Val, "/")
+					if strings.Contains(pathSlice[len(pathSlice)-1], "?") {
+						pathSlice = strings.Split(pathSlice[len(pathSlice)-1], "?")
+						fileName = pathSlice[0]
+					} else {
+						fileName = pathSlice[len(pathSlice)-1]
+					}
+					fileName = utils.ConcatSlice([]string{dirName, "/", fileName})
 				}
 				if fileName != "" {
 					file, err := os.Create(fileName)
 					defer file.Close()
-
 					_, err = io.Copy(file, response.Body)
 					if err != nil {
 						customLog.Logging(err)
 					}
-					parser.SrtAdded = utils.ConcatSlice([]string{parser.SrtAdded, utils.ConcatSlice([]string{"added: ", fileName}), "\n"})
+					parser.StrAdded = utils.ConcatSlice([]string{parser.StrAdded, utils.ConcatSlice([]string{"added: ", fileName}), "\n"})
 				}
 			}
 		}
