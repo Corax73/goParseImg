@@ -19,6 +19,7 @@ type State struct {
 	ImageDir, StrAdded, StrError string
 }
 
+// ResetState resets State structure parameters to default.
 func (state *State) ResetState() {
 	state.Delay = 0
 	state.ImageDir = "./images/"
@@ -29,6 +30,7 @@ type ImgParser struct {
 	State
 }
 
+// Init checks and creates if there is no environment file, gets the Delay value.
 func (parser *ImgParser) Init() {
 	var err error
 
@@ -46,9 +48,9 @@ func (parser *ImgParser) Init() {
 			customLog.Logging(err)
 		}
 	}
-	parser.ImageDir = "./images/"
 }
 
+// SendRequest sends Get requests using the passed string.
 func (parser *ImgParser) SendRequest(url string) (*http.Response, error) {
 	var response *http.Response
 	if parser.Delay > 0 {
@@ -74,14 +76,13 @@ func (parser *ImgParser) SendRequest(url string) (*http.Response, error) {
 	return response, err
 }
 
+// GetImg receives images from the address of the passed string from the IMG tag.
 func (parser *ImgParser) GetImg(url string) {
 	var err error
 	response, err := parser.SendRequest(url)
 	if err == nil {
 		defer response.Body.Close()
-		currentTime := time.Now()
-		dirName := utils.ConcatSlice([]string{parser.ImageDir, currentTime.Format("2006_01_2-15_04_05")})
-		dirName, err = utils.CreateDir(dirName)
+		dirName, err := parser.createTimestampAsDirForFiles()
 		if err == nil {
 			doc, err := html.Parse(response.Body)
 			if err != nil {
@@ -103,6 +104,7 @@ func (parser *ImgParser) GetImg(url string) {
 	utils.GCRunAndPrintMemory()
 }
 
+// ProcessHtmlDoc processes html nodes.
 func (parser *ImgParser) ProcessHtmlDoc(n *html.Node, tagName string, dirName string, strDomain string) {
 	if n.Data == tagName {
 		parser.GetSrc(n, dirName, strDomain)
@@ -113,6 +115,7 @@ func (parser *ImgParser) ProcessHtmlDoc(n *html.Node, tagName string, dirName st
 	}
 }
 
+// GetSrc gets the image by value in the SRC attribute.
 func (parser *ImgParser) GetSrc(n *html.Node, dirName string, strDomain string) {
 	for _, a := range n.Attr {
 		if a.Key == "src" && strings.Contains(a.Val, "/") && !strings.Contains(a.Val, ".svg") && len(a.Val) > 5 {
@@ -163,4 +166,11 @@ func (parser *ImgParser) GetSrc(n *html.Node, dirName string, strDomain string) 
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
 		parser.GetSrc(c, dirName, strDomain)
 	}
+}
+
+// createTimestampAsDirForFiles creates a directory for files with a name - timestamp.
+func (parser *ImgParser) createTimestampAsDirForFiles() (string, error) {
+	currentTime := time.Now()
+	dirName := utils.ConcatSlice([]string{parser.ImageDir, currentTime.Format("2006_01_2-15_04_05")})
+	return utils.CreateDir(dirName)
 }
