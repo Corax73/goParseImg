@@ -26,6 +26,11 @@ func (state *State) ResetState() {
 	state.StrAdded, state.StrError = "", ""
 }
 
+type HtmlDataToParse struct {
+	HtmlDoc                      *html.Node
+	TagName, DirName, DomainName string
+}
+
 type ImgParser struct {
 	State
 }
@@ -76,8 +81,8 @@ func (parser *ImgParser) SendRequest(url string) (*http.Response, error) {
 	return response, err
 }
 
-// GetImg receives images from the address of the passed string from the IMG tag.
-func (parser *ImgParser) GetImg(url string) {
+// GetHtmlFromUrl receives images from the address of the passed string from the IMG tag.
+func (parser *ImgParser) GetHtmlFromUrl(url string, ch chan<- *HtmlDataToParse) {
 	var err error
 	response, err := parser.SendRequest(url)
 	if err == nil {
@@ -92,7 +97,12 @@ func (parser *ImgParser) GetImg(url string) {
 			pathSlice := strings.Split(url, "/")
 			pathSlice = pathSlice[:3]
 			strDomain := utils.ConcatSlice([]string{pathSlice[0], "//", pathSlice[2]})
-			parser.ProcessHtmlDoc(doc, "img", dirName, strDomain)
+			ch <- &HtmlDataToParse{
+				doc,
+				"img",
+				dirName,
+				strDomain,
+			}
 		} else {
 			parser.StrError = err.Error()
 			customLog.Logging(err)
@@ -105,23 +115,32 @@ func (parser *ImgParser) GetImg(url string) {
 }
 
 // ProcessHtmlDoc processes html nodes.
-func (parser *ImgParser) ProcessHtmlDoc(n *html.Node, tagName string, dirName string, strDomain string) {
-	if n.Data == tagName {
-		parser.GetSrc(n, dirName, strDomain)
+func (parser *ImgParser) ProcessHtmlDoc(ch <-chan *HtmlDataToParse) {
+	htmlData := <-ch
+	if htmlData.HtmlDoc.Data == htmlData.TagName {
+		parser.GetSrc(htmlData)
 	}
 
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		parser.ProcessHtmlDoc(c, tagName, dirName, strDomain)
+	for c := htmlData.HtmlDoc.FirstChild; c != nil; c = c.NextSibling {
+		ch := make(chan *HtmlDataToParse, 1)
+		defer close(ch)
+		ch <- &HtmlDataToParse{
+			c,
+			htmlData.TagName,
+			htmlData.DirName,
+			htmlData.DomainName,
+		}
+		parser.ProcessHtmlDoc(ch)
 	}
 }
 
 // GetSrc gets the image by value in the SRC attribute.
-func (parser *ImgParser) GetSrc(n *html.Node, dirName string, strDomain string) {
-	for _, a := range n.Attr {
+func (parser *ImgParser) GetSrc(htmlData *HtmlDataToParse) {
+	for _, a := range htmlData.HtmlDoc.Attr {
 		if a.Key == "src" && strings.Contains(a.Val, "/") && !strings.Contains(a.Val, ".svg") && len(a.Val) > 5 {
 			imgUrl := a.Val
 			if !strings.Contains(a.Val, "http") && !strings.Contains(a.Val, "//") {
-				imgUrl = utils.ConcatSlice([]string{strDomain, imgUrl})
+				imgUrl = utils.ConcatSlice([]string{htmlData.DomainName, imgUrl})
 			} else if !strings.Contains(a.Val, "http") && strings.Contains(a.Val, "//") {
 				imgUrl = utils.ConcatSlice([]string{"http:", imgUrl})
 			}
@@ -138,7 +157,7 @@ func (parser *ImgParser) GetSrc(n *html.Node, dirName string, strDomain string) 
 				if !strings.Contains(imgUrl, ".jpg") && !strings.Contains(imgUrl, ".png") {
 					pathSlice = strings.Split(pathSlice[0], "/")
 					if len(pathSlice[len(pathSlice)-1]) > 0 {
-						fileName = utils.ConcatSlice([]string{dirName, "/", pathSlice[len(pathSlice)-1], ".jpg"})
+						fileName = utils.ConcatSlice([]string{htmlData.DirName, "/", pathSlice[len(pathSlice)-1], ".jpg"})
 					}
 				} else {
 					pathSlice = strings.Split(a.Val, "/")
@@ -148,7 +167,7 @@ func (parser *ImgParser) GetSrc(n *html.Node, dirName string, strDomain string) 
 					} else {
 						fileName = pathSlice[len(pathSlice)-1]
 					}
-					fileName = utils.ConcatSlice([]string{dirName, "/", fileName})
+					fileName = utils.ConcatSlice([]string{htmlData.DirName, "/", fileName})
 				}
 				if fileName != "" {
 					file, err := os.Create(fileName)
@@ -163,8 +182,8 @@ func (parser *ImgParser) GetSrc(n *html.Node, dirName string, strDomain string) 
 		}
 	}
 
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		parser.GetSrc(c, dirName, strDomain)
+	for c := htmlData.HtmlDoc.FirstChild; c != nil; c = c.NextSibling {
+		parser.GetSrc(htmlData)
 	}
 }
 

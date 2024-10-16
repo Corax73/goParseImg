@@ -32,19 +32,33 @@ func (parserGui *ParserGui) SendBtnHandler() *widget.Button {
 			}()
 
 			var wg sync.WaitGroup
+			chanHtmlData := make(chan *imgParser.HtmlDataToParse, len(urlSlice))
+			defer close(chanHtmlData)
 			defer wg.Wait()
 			for _, url := range urlSlice {
 				wg.Add(1)
 				go func() {
 					parserGui.getDelay()
-					parserGui.Parser.GetImg(url)
-					if parserGui.Parser.StrError == "" {
-						parserGui.Display.SetText(utils.ConcatSlice([]string{parserGui.Display.Text, parserGui.Parser.StrAdded}))
-					} else {
-						parserGui.Display.SetText(utils.ConcatSlice([]string{parserGui.Parser.StrError}))
-					}
-					wg.Done()
+					parserGui.Parser.GetHtmlFromUrl(url, chanHtmlData)
+					defer wg.Done()
 				}()
+			}
+
+			check := true
+			i := 0
+			for check {
+				if len(chanHtmlData) > 0 {
+					wg.Add(1)
+					go func(ch chan *imgParser.HtmlDataToParse) {
+						defer wg.Done()
+						parserGui.Parser.ProcessHtmlDoc(chanHtmlData)
+						parserGui.ShowResp()
+					}(chanHtmlData)
+					i++
+				}
+				if i == len(urlSlice) {
+					check = false
+				}
 			}
 		}
 	})
@@ -80,4 +94,12 @@ func (parserGui *ParserGui) ClearWindowBtnHandler() *widget.Button {
 
 func (parserGui *ParserGui) GetDelayPlaceholder() string {
 	return utils.ConcatSlice([]string{"Enter delay, now installed: ", strconv.Itoa(parserGui.Parser.Delay), " seconds"})
+}
+
+func (parserGui *ParserGui) ShowResp() {
+	if parserGui.Parser.StrError == "" {
+		parserGui.Display.SetText(utils.ConcatSlice([]string{parserGui.Display.Text, parserGui.Parser.StrAdded}))
+	} else {
+		parserGui.Display.SetText(utils.ConcatSlice([]string{parserGui.Parser.StrError}))
+	}
 }
