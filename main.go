@@ -35,6 +35,7 @@ func main() {
 		Input:   widget.NewEntry(),
 		Display: widget.NewEntry(),
 		DelayEntry:    widget.NewEntry(),
+		DisplayTotal: widget.NewLabel("Total added: "),
 	}
 
 	parserGui.DelayEntry.SetPlaceHolder(parserGui.GetDelayPlaceholder())
@@ -48,9 +49,10 @@ func main() {
 			4,
 			parserGui.Input,
 			container.NewGridWithColumns(
-				2,
+				3,
 				parserGui.DelayEntry,
 				parserGui.SendBtn,
+				parserGui.DisplayTotal,
 			),
 			parserGui.ScrollContainer,
 			container.NewGridWithColumns(

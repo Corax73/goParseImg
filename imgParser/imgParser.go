@@ -15,13 +15,14 @@ import (
 )
 
 type State struct {
-	Delay                        int
+	Delay, CountAdded            int
 	ImageDir, StrAdded, StrError string
 }
 
 // ResetState resets State structure parameters to default.
 func (state *State) ResetState() {
 	state.Delay = 0
+	state.CountAdded = 0
 	state.ImageDir = "./images/"
 	state.StrAdded, state.StrError = "", ""
 }
@@ -84,6 +85,9 @@ func (parser *ImgParser) SendRequest(url string) (*http.Response, error) {
 // GetHtmlFromUrl receives images from the address of the passed string from the IMG tag.
 func (parser *ImgParser) GetHtmlFromUrl(url string, ch chan<- *HtmlDataToParse) {
 	var err error
+	if !strings.Contains(url, "http") {
+		url = utils.ConcatSlice([]string{"http://", url})
+	}
 	response, err := parser.SendRequest(url)
 	if err == nil {
 		defer response.Body.Close()
@@ -108,6 +112,13 @@ func (parser *ImgParser) GetHtmlFromUrl(url string, ch chan<- *HtmlDataToParse) 
 			customLog.Logging(err)
 		}
 	} else {
+		var doc *html.Node
+		ch <- &HtmlDataToParse{
+			doc,
+			"img",
+			"",
+			"",
+		}
 		parser.StrError = err.Error()
 		customLog.Logging(err)
 	}
@@ -117,20 +128,21 @@ func (parser *ImgParser) GetHtmlFromUrl(url string, ch chan<- *HtmlDataToParse) 
 // ProcessHtmlDoc processes html nodes.
 func (parser *ImgParser) ProcessHtmlDoc(ch <-chan *HtmlDataToParse) {
 	htmlData := <-ch
-	if htmlData.HtmlDoc.Data == htmlData.TagName {
-		parser.GetSrc(htmlData)
-	}
-
-	for c := htmlData.HtmlDoc.FirstChild; c != nil; c = c.NextSibling {
-		ch := make(chan *HtmlDataToParse, 1)
-		defer close(ch)
-		ch <- &HtmlDataToParse{
-			c,
-			htmlData.TagName,
-			htmlData.DirName,
-			htmlData.DomainName,
+	if htmlData.HtmlDoc != nil {
+		if htmlData.HtmlDoc.Data == htmlData.TagName {
+			parser.GetSrc(htmlData)
 		}
-		parser.ProcessHtmlDoc(ch)
+		for c := htmlData.HtmlDoc.FirstChild; c != nil; c = c.NextSibling {
+			ch := make(chan *HtmlDataToParse, 1)
+			defer close(ch)
+			ch <- &HtmlDataToParse{
+				c,
+				htmlData.TagName,
+				htmlData.DirName,
+				htmlData.DomainName,
+			}
+			parser.ProcessHtmlDoc(ch)
+		}
 	}
 }
 
@@ -175,8 +187,10 @@ func (parser *ImgParser) GetSrc(htmlData *HtmlDataToParse) {
 					_, err = io.Copy(file, response.Body)
 					if err != nil {
 						customLog.Logging(err)
+					} else {
+						parser.CountAdded++
+						parser.StrAdded = utils.ConcatSlice([]string{parser.StrAdded, utils.ConcatSlice([]string{"added: ", fileName}), "\n"})
 					}
-					parser.StrAdded = utils.ConcatSlice([]string{parser.StrAdded, utils.ConcatSlice([]string{"added: ", fileName}), "\n"})
 				}
 			}
 		}

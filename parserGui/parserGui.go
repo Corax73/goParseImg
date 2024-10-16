@@ -18,6 +18,7 @@ type ParserGui struct {
 	Input, Display, DelayEntry *widget.Entry
 	ScrollContainer            *container.Scroll
 	SendBtn, ClearWindowBtn    *widget.Button
+	DisplayTotal               *widget.Label
 }
 
 func (parserGui *ParserGui) SendBtnHandler() *widget.Button {
@@ -51,6 +52,7 @@ func (parserGui *ParserGui) SendBtnHandler() *widget.Button {
 					wg.Add(1)
 					go func(ch chan *imgParser.HtmlDataToParse) {
 						defer wg.Done()
+						parserGui.Display.SetText(utils.ConcatSlice([]string{"Wait...", "\n"}))
 						parserGui.Parser.ProcessHtmlDoc(chanHtmlData)
 						parserGui.ShowResp()
 					}(chanHtmlData)
@@ -88,6 +90,7 @@ func (parserGui *ParserGui) ClearWindowBtnHandler() *widget.Button {
 		parserGui.Input.SetText("")
 		parserGui.Display.SetText("")
 		parserGui.DelayEntry.SetText(parserGui.GetDelayPlaceholder())
+		parserGui.DisplayTotal.SetText("Total added: ")
 		parserGui.Parser.ResetState()
 	})
 }
@@ -102,4 +105,5 @@ func (parserGui *ParserGui) ShowResp() {
 	} else {
 		parserGui.Display.SetText(utils.ConcatSlice([]string{parserGui.Parser.StrError}))
 	}
+	parserGui.DisplayTotal.SetText(utils.ConcatSlice([]string{"Total added: ", strconv.Itoa(parserGui.Parser.CountAdded)}))
 }
