@@ -2,6 +2,7 @@ package main
 
 import (
 	"conc/customLog"
+	"conc/customTheme"
 	"conc/imgParser"
 	"conc/parserGui"
 	"conc/utils"
@@ -21,6 +22,7 @@ func main() {
 	customLog.LogInit("./logs/app.log")
 
 	parserApp := app.New()
+	parserApp.Settings().SetTheme(customTheme.NewCustomTheme())
 	window := parserApp.NewWindow("Image parser")
 
 	btnExit := widget.NewButton("Exit", func() {
@@ -38,6 +40,7 @@ func main() {
 		DisplayTotal: widget.NewLabel("Total added: "),
 	}
 
+	parserGui.Input.SetPlaceHolder("Enter the URL of the html resource for the request (enter multiple values ​​separated by commas)")
 	parserGui.DelayEntry.SetPlaceHolder(parserGui.GetDelayPlaceholder())
 	parserGui.ClearWindowBtn = parserGui.ClearWindowBtnHandler()
 	parserGui.SendBtn = parserGui.SendBtnHandler()

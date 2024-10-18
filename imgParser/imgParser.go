@@ -85,6 +85,7 @@ func (parser *ImgParser) SendRequest(url string) (*http.Response, error) {
 // GetHtmlFromUrl receives images from the address of the passed string from the IMG tag.
 func (parser *ImgParser) GetHtmlFromUrl(url string, ch chan<- *HtmlDataToParse) {
 	var err error
+	url = strings.Trim(url, " ")
 	if !strings.Contains(url, "http") {
 		url = utils.ConcatSlice([]string{"http://", url})
 	}
@@ -149,7 +150,7 @@ func (parser *ImgParser) ProcessHtmlDoc(ch <-chan *HtmlDataToParse) {
 // GetSrc gets the image by value in the SRC attribute.
 func (parser *ImgParser) GetSrc(htmlData *HtmlDataToParse) {
 	for _, a := range htmlData.HtmlDoc.Attr {
-		if a.Key == "src" && strings.Contains(a.Val, "/") && !strings.Contains(a.Val, ".svg") && len(a.Val) > 5 {
+		if a.Key == "src" && strings.Contains(a.Val, "/") && !strings.Contains(a.Val, ".svg") && !strings.Contains(a.Val, ".gif") && len(a.Val) > 5 {
 			imgUrl := a.Val
 			if !strings.Contains(a.Val, "http") && !strings.Contains(a.Val, "//") {
 				imgUrl = utils.ConcatSlice([]string{htmlData.DomainName, imgUrl})
@@ -169,7 +170,7 @@ func (parser *ImgParser) GetSrc(htmlData *HtmlDataToParse) {
 				if !strings.Contains(imgUrl, ".jpg") && !strings.Contains(imgUrl, ".png") {
 					pathSlice = strings.Split(pathSlice[0], "/")
 					if len(pathSlice[len(pathSlice)-1]) > 0 {
-						fileName = utils.ConcatSlice([]string{htmlData.DirName, "/", pathSlice[len(pathSlice)-1], ".jpg"})
+						fileName = utils.ConcatSlice([]string{pathSlice[len(pathSlice)-1], ".jpg"})
 					}
 				} else {
 					pathSlice = strings.Split(a.Val, "/")
@@ -179,9 +180,14 @@ func (parser *ImgParser) GetSrc(htmlData *HtmlDataToParse) {
 					} else {
 						fileName = pathSlice[len(pathSlice)-1]
 					}
-					fileName = utils.ConcatSlice([]string{htmlData.DirName, "/", fileName})
 				}
 				if fileName != "" {
+					_, err := os.Stat(utils.ConcatSlice([]string{htmlData.DirName, "/", fileName}))
+					if !os.IsNotExist(err) {
+						now := time.Now()
+						fileName = utils.ConcatSlice([]string{"duplicate_name_", strconv.Itoa(int(now.UnixNano())), "_", fileName})
+					}
+					fileName = utils.ConcatSlice([]string{htmlData.DirName, "/", fileName})
 					file, err := os.Create(fileName)
 					defer file.Close()
 					_, err = io.Copy(file, response.Body)
