@@ -162,12 +162,12 @@ func (parser *ImgParser) GetSrc(htmlData *HtmlDataToParse) {
 			imgUrl = pathSlice[0]
 			var err error
 			response, err := parser.SendRequest(imgUrl)
-			defer response.Body.Close()
 			if err != nil {
 				customLog.Logging(err)
 			} else {
+				defer response.Body.Close()
 				var fileName string
-				if !strings.Contains(imgUrl, ".jpg") && !strings.Contains(imgUrl, ".png") {
+				if !strings.Contains(imgUrl, ".jpg") && !strings.Contains(imgUrl, ".png") && !strings.Contains(imgUrl, ".webp"){
 					pathSlice = strings.Split(pathSlice[0], "/")
 					if len(pathSlice[len(pathSlice)-1]) > 0 {
 						fileName = utils.ConcatSlice([]string{pathSlice[len(pathSlice)-1], ".jpg"})
@@ -189,7 +189,11 @@ func (parser *ImgParser) GetSrc(htmlData *HtmlDataToParse) {
 					}
 					fileName = utils.ConcatSlice([]string{htmlData.DirName, "/", fileName})
 					file, err := os.Create(fileName)
-					defer file.Close()
+					if err != nil {
+						customLog.Logging(err)
+					} else {
+						defer file.Close()
+					}
 					_, err = io.Copy(file, response.Body)
 					if err != nil {
 						customLog.Logging(err)
