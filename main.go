@@ -33,15 +33,19 @@ func main() {
 	parser.Init()
 
 	parserGui := parserGui.ParserGui{
-		Parser:  &parser,
-		Input:   widget.NewEntry(),
-		Display: widget.NewEntry(),
-		DelayEntry:    widget.NewEntry(),
-		DisplayTotal: widget.NewLabel("Total added: "),
+		Parser:         &parser,
+		Input:          widget.NewEntry(),
+		Display:        widget.NewEntry(),
+		DelayEntry:     widget.NewEntry(),
+		TagEntry:       widget.NewEntry(),
+		AttributeEntry: widget.NewEntry(),
+		DisplayTotal:   widget.NewLabel("Total added: "),
 	}
 
 	parserGui.Input.SetPlaceHolder("Enter the URL of the html resource for the request (enter multiple values ​​separated by commas)")
 	parserGui.DelayEntry.SetPlaceHolder(parserGui.GetDelayPlaceholder())
+	parserGui.TagEntry.SetPlaceHolder("Enter a tag storing images, default `img`")
+	parserGui.AttributeEntry.SetPlaceHolder("Enter an attribute that stores a link to images, default `src`")
 	parserGui.ClearWindowBtn = parserGui.ClearWindowBtnHandler()
 	parserGui.SendBtn = parserGui.SendBtnHandler()
 	parserGui.ScrollContainer = parserGui.GetScrollDisplay()
@@ -52,15 +56,17 @@ func main() {
 			4,
 			parserGui.Input,
 			container.NewGridWithColumns(
-				3,
+				4,
 				parserGui.DelayEntry,
+				parserGui.TagEntry,
+				parserGui.AttributeEntry,
 				parserGui.SendBtn,
-				parserGui.DisplayTotal,
 			),
 			parserGui.ScrollContainer,
 			container.NewGridWithColumns(
-				2,
+				3,
 				parserGui.ClearWindowBtn,
+				parserGui.DisplayTotal,
 				btnExit,
 			),
 		),

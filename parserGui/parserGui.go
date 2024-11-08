@@ -14,17 +14,23 @@ import (
 )
 
 type ParserGui struct {
-	Parser                     *imgParser.ImgParser
-	Input, Display, DelayEntry *widget.Entry
-	ScrollContainer            *container.Scroll
-	SendBtn, ClearWindowBtn    *widget.Button
-	DisplayTotal               *widget.Label
+	Parser                                               *imgParser.ImgParser
+	Input, Display, DelayEntry, TagEntry, AttributeEntry *widget.Entry
+	ScrollContainer                                      *container.Scroll
+	SendBtn, ClearWindowBtn                              *widget.Button
+	DisplayTotal                                         *widget.Label
 }
 
 func (parserGui *ParserGui) SendBtnHandler() *widget.Button {
-	return widget.NewButton("Send", func() {
+	return widget.NewButton("Parse", func() {
 		if parserGui.Input.Text != "" {
 			parserGui.Parser.ResetState()
+			if parserGui.TagEntry.Text != "" {
+				parserGui.Parser.Tag = parserGui.TagEntry.Text
+			}
+			if parserGui.AttributeEntry.Text != "" {
+				parserGui.Parser.Attribute = parserGui.AttributeEntry.Text
+			}
 			urlSlice := strings.Split(parserGui.Input.Text, ",")
 			startTime := time.Now()
 			defer func() {

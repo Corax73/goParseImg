@@ -15,8 +15,8 @@ import (
 )
 
 type State struct {
-	Delay, CountAdded            int
-	ImageDir, StrAdded, StrError string
+	Delay, CountAdded                            int
+	ImageDir, StrAdded, StrError, Tag, Attribute string
 }
 
 // ResetState resets State structure parameters to default.
@@ -25,6 +25,8 @@ func (state *State) ResetState() {
 	state.CountAdded = 0
 	state.ImageDir = "./images/"
 	state.StrAdded, state.StrError = "", ""
+	state.Tag = "img"
+	state.Attribute = "src"
 }
 
 type HtmlDataToParse struct {
@@ -104,7 +106,7 @@ func (parser *ImgParser) GetHtmlFromUrl(url string, ch chan<- *HtmlDataToParse) 
 			strDomain := utils.ConcatSlice([]string{pathSlice[0], "//", pathSlice[2]})
 			ch <- &HtmlDataToParse{
 				doc,
-				"img",
+				parser.Tag,
 				dirName,
 				strDomain,
 			}
@@ -116,7 +118,7 @@ func (parser *ImgParser) GetHtmlFromUrl(url string, ch chan<- *HtmlDataToParse) 
 		var doc *html.Node
 		ch <- &HtmlDataToParse{
 			doc,
-			"img",
+			parser.Tag,
 			"",
 			"",
 		}
@@ -150,7 +152,7 @@ func (parser *ImgParser) ProcessHtmlDoc(ch <-chan *HtmlDataToParse) {
 // GetSrc gets the image by value in the SRC attribute.
 func (parser *ImgParser) GetSrc(htmlData *HtmlDataToParse) {
 	for _, a := range htmlData.HtmlDoc.Attr {
-		if a.Key == "src" && strings.Contains(a.Val, "/") && !strings.Contains(a.Val, ".svg") && !strings.Contains(a.Val, ".gif") && len(a.Val) > 5 {
+		if a.Key == parser.Attribute && strings.Contains(a.Val, "/") && !strings.Contains(a.Val, ".svg") && !strings.Contains(a.Val, ".gif") && len(a.Val) > 5 {
 			imgUrl := a.Val
 			if !strings.Contains(a.Val, "http") && !strings.Contains(a.Val, "//") {
 				imgUrl = utils.ConcatSlice([]string{htmlData.DomainName, imgUrl})
@@ -167,7 +169,7 @@ func (parser *ImgParser) GetSrc(htmlData *HtmlDataToParse) {
 			} else {
 				defer response.Body.Close()
 				var fileName string
-				if !strings.Contains(imgUrl, ".jpg") && !strings.Contains(imgUrl, ".png") && !strings.Contains(imgUrl, ".webp"){
+				if !strings.Contains(imgUrl, ".jpg") && !strings.Contains(imgUrl, ".png") && !strings.Contains(imgUrl, ".webp") {
 					pathSlice = strings.Split(pathSlice[0], "/")
 					if len(pathSlice[len(pathSlice)-1]) > 0 {
 						fileName = utils.ConcatSlice([]string{pathSlice[len(pathSlice)-1], ".jpg"})
