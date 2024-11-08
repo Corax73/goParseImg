@@ -16,4 +16,6 @@ in the process, the phrase `Wait...`, then a list of created files and the time 
 7. The number of received files is displayed.
 8. Closing the program window.
 
+The application creates a .env file, images and logs directories next to itself. Images are stored in newly created directories images/Date_time.
+
 <p align="cen-er"><img src="readmeImg/screen.jpg"></p>
